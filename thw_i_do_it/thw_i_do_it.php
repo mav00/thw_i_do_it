@@ -71,7 +71,7 @@ function thw_plugin_main( $atts ) {
 	if($tabelle == 'ERROR'){
 		return ' !!!Error: Tabelle konnte nicht gefunden werden!!! ';
 	}else{
-		$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tabelle;
+		$tabelleWithPrefix = getTableWithPrefix($tabelle);
 	}
 
 
@@ -204,7 +204,6 @@ function deleteSelected( $tab, $id, $field )
 
 function chechIfInList($tab,$id,$user){
 	global $wpdb;
-	
 	$sqlStr = 'select * from ' . getTableWithPrefix($tab) .' where id = %d';
 	$data = $wpdb->get_row($wpdb->prepare($sqlStr,$id));
 	return in_array($user, (array) $data);
@@ -214,6 +213,7 @@ function getTableWithPrefix($tab)
 {
 	global $wpdb;
 	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
+	//check if Table exits
 	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $tabelleWithPrefix ) ) !== $tabelleWithPrefix ) {
 		echo "fehler in der Abfrage";
 		$tabelleWithPrefix = 'ERROR';
@@ -223,10 +223,8 @@ function getTableWithPrefix($tab)
 
 function updateSelected( $tab, $id, $field )
 {
-	//todo: check if user is allready somewhere in that row
-
+	//it should only work if the field is empty or _NutzerEintragen_
 	global $wpdb;
-	
 	$wpdb->update(getTableWithPrefix($tab) , array($field => getUsername()), array('ID' => $id ));
 }
 
@@ -237,7 +235,6 @@ function deleteRow( $tab, $id )
 		echo 'ungenügend Rechte';
 		return;
 	}
-	//todo: check if user is allowed to do that!!!
 	global $wpdb;
 	//$dataValue = '';
 	$sqlStr = 'Delete from ' . getTableWithPrefix($tab) . ' WHERE ID = %d' ;
@@ -255,9 +252,7 @@ function insertData( $tab, $fieldValueArray )
 	$data = [];
 	unset($fieldValueArray["table"]);
 	unset($fieldValueArray["addRow"]);
-
-	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
-	$wpdb->insert($wpdb->prefix . "thw_idi_" . $tab , $fieldValueArray, array( '%s','%s' ));
+	$wpdb->insert(getTableWithPrefix($tab) , $fieldValueArray, array( '%s','%s' ));
 }
 
 

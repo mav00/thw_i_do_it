@@ -197,19 +197,28 @@ function deleteSelected( $tab, $id, $field )
 		return;
 	}
 	global $wpdb;
-	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
-	//$dataValue = '';
-	$sqlStr = 'UPDATE ' . $tabelleWithPrefix . ' SET ' . $field . '="_NutzerEintragen_" WHERE ID = %d' ;
+	$sqlStr = 'UPDATE ' . getTableWithPrefix($tab) . ' SET ' . $field . '="_NutzerEintragen_" WHERE ID = %d' ;
 	//echo $sqlStr . '<br>';
 	$wpdb->query($wpdb->prepare($sqlStr,$id));	//prepare disallows SQL injection
 }
 
 function chechIfInList($tab,$id,$user){
 	global $wpdb;
-	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
-	$sqlStr = 'select * from ' . $tabelleWithPrefix .' where id = %d';
+	
+	$sqlStr = 'select * from ' . getTableWithPrefix($tab) .' where id = %d';
 	$data = $wpdb->get_row($wpdb->prepare($sqlStr,$id));
 	return in_array($user, (array) $data);
+}
+
+function getTableWithPrefix($tab)
+{
+	global $wpdb;
+	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
+	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $tabelleWithPrefix ) ) !== $tabelleWithPrefix ) {
+		echo "fehler in der Abfrage";
+		$tabelleWithPrefix = 'ERROR';
+	} 
+	return $tabelleWithPrefix;
 }
 
 function updateSelected( $tab, $id, $field )
@@ -217,8 +226,8 @@ function updateSelected( $tab, $id, $field )
 	//todo: check if user is allready somewhere in that row
 
 	global $wpdb;
-	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
-	$wpdb->update($tabelleWithPrefix , array($field => getUsername()), array('ID' => $id ));
+	
+	$wpdb->update(getTableWithPrefix($tab) , array($field => getUsername()), array('ID' => $id ));
 }
 
 function deleteRow( $tab, $id )
@@ -230,9 +239,8 @@ function deleteRow( $tab, $id )
 	}
 	//todo: check if user is allowed to do that!!!
 	global $wpdb;
-	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
 	//$dataValue = '';
-	$sqlStr = 'Delete from ' . $tabelleWithPrefix . ' WHERE ID = %d' ;
+	$sqlStr = 'Delete from ' . getTableWithPrefix($tab) . ' WHERE ID = %d' ;
 	$wpdb->query($wpdb->prepare($sqlStr,$id));	 //prepare disallows SQL injection
 }
 

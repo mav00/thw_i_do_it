@@ -218,10 +218,7 @@ function updateSelected( $tab, $id, $field )
 
 	global $wpdb;
 	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
-	//$dataValue = '';
-	$sqlStr = 'UPDATE ' . $tabelleWithPrefix . ' SET ' . $field . '="' . getUsername() . '" WHERE ID = %d' ;
-	//echo $sqlStr . '<br>';
-	$wpdb->query($wpdb->prepare($sqlStr,$id));	//prepare disallows SQL injection
+	$wpdb->update($tabelleWithPrefix , array($field => getUsername()), array('ID' => $id ));
 }
 
 function deleteRow( $tab, $id )

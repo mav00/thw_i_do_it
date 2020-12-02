@@ -19,22 +19,15 @@
 
 	/*get if there is a sumit button presed*/
     if(isset($_POST['insert_me'])){
-		$submitted_array = ($_POST['insert_me']);
 		$table = $_POST['table'];
 		$id = $_POST['ID'];
 		$field = $_POST['column'];
 		updateSelected($table, $id, $field );
-		//echo $table . $id . $field;	
-		//echo("You clicked button one!");
-		
-        //and then execute a sql query here
 	}else if(isset($_POST['deleteRow'])){
-		$submitted_array = ($_POST['deleteRow']);
 		$table = $_POST['table'];
 		$id = $_POST['ID'];
 		deleteRow($table, $id);
 	}else if(isset($_POST['addRow'])){
-		$submitted_array = ($_POST['addRow']);
 		$table = $_POST['table'];
 		insertData( $table, $_POST );
 	}else if(isset($_POST['del_user'])){
@@ -163,7 +156,6 @@ function thw_plugin_main( $atts ) {
 					$hugeRetString .= '<td>' . $tabval . '</td>' ;
 				}
 			}
-
 			//end the Row
 			$hugeRetString .= '</tr>';
 		}
@@ -174,7 +166,6 @@ function thw_plugin_main( $atts ) {
 		$hugeRetString .= '<input type="submit" class="button" value="hinzufügen" name="addRow"/> </td>' ;
 		foreach($thwIdiFieldsArray as $key => $field)
 		{
-
 			$hugeRetString .= '<td>' ;
 			if(!in_array($field, $thwIdiSelectableFieldsArray)){
 				$hugeRetString .= '<input type="text" name="' . $field .'" value="" />';
@@ -190,10 +181,8 @@ function thw_plugin_main( $atts ) {
 
 function checkIfInList($tab,$DBid){
 	global $wpdb;
-
 	$sqlStr = 'select * from ' . getTableWithPrefix($tab) .' where id = %d';
 	$data = $wpdb->get_row($wpdb->prepare($sqlStr,$DBid));
-
 	return in_array(get_current_user_id(), (array) $data);
 }
 

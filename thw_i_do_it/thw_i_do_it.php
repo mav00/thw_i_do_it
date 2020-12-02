@@ -44,18 +44,17 @@
 		deleteSelected($table,$id,$dbfield);
 	}
 
-function getUsername(){
-	global $current_user;
-	$user = wp_get_current_user();
-	$_strName = $user->first_name . ' ' . $user->last_name; 
+function getUserNameByID($userID)
+{
+	$user = get_userdata($userID);
+	$_strName = $user ? $user->first_name . ' ' . $user->last_name : ''; 
 	return $_strName;  
-}	
-
+}
 
 function getDataFromSetupTable($table){
 	global $wpdb;
-	$sqlStr= 'select * from wp_thw_idi_configuration where IdiTable="' . $table . '";'; 
-	return $wpdb->get_row($sqlStr);
+	$sqlStr= 'select * from wp_thw_idi_configuration where IdiTable=%s;'; 
+	return $wpdb->get_row($wpdb->prepare($sqlStr,$table));
 }
 
 function thw_plugin_main( $atts ) {
@@ -133,12 +132,13 @@ function thw_plugin_main( $atts ) {
 				$hugeRetString .= '</form></td>';
 			}
 
-			$userIsInRow = chechIfInList($tabelle,$thwdatum->ID,getUsername());
+			$userIsInRow = checkIfInList($tabelle,$thwdatum->ID);
 			foreach($thwIdiFieldsArray as $key => $dbfield){
+				$isSelectableField = in_array($dbfield, $thwIdiSelectableFieldsArray);
 				//debug: echo $thwdatum->Datum;
 				//debug: var_dump($thwdatum);
-				$isEmptySelectField  = ($thwdatum->$dbfield == '_NutzerEintragen_' || $thwdatum->$dbfield == '') && in_array($dbfield, $thwIdiSelectableFieldsArray);
-				$isFilledSelectField  = ($thwdatum->$dbfield != '_NutzerEintragen_' && $thwdatum->$dbfield != '') && in_array($dbfield, $thwIdiSelectableFieldsArray);
+				$isEmptySelectField  = ($thwdatum->$dbfield == Null || $thwdatum->$dbfield < 0) && $isSelectableField;
+				$isFilledSelectField  = ($thwdatum->$dbfield != NULL && $thwdatum->$dbfield >=0) && $isSelectableField;
 				if( $isEmptySelectField && !$userIsInRow)
 				{
 					// if there is no entry bild the button to register
@@ -150,7 +150,7 @@ function thw_plugin_main( $atts ) {
 					$hugeRetString .= '</form></td>';
 				}else if ($isFilledSelectField && $isAdmin){
 					// add delete entry for Admins but only in edit fields
-					$hugeRetString .= '<td>' . $thwdatum->$dbfield . '<form method="POST" onsubmit="return confirm(\'Soll der Eintrag wirklich gelöscht werden?\');" action="' . $thisPage . '">';
+					$hugeRetString .= '<td>' . getUserNameByID($thwdatum->$dbfield)	 . '<form method="POST" onsubmit="return confirm(\'Soll der Eintrag wirklich gelöscht werden?\');" action="' . $thisPage . '">';
 					$hugeRetString .= '<input type="hidden" name="table" value="' . $tabelle . '" />';
 					$hugeRetString .= '<input type="hidden" name="ID" value="' . $thwdatum->ID . '" />';
 					$hugeRetString .= '<input type="hidden" name="column" value="' . $dbfield . '" />';
@@ -159,7 +159,7 @@ function thw_plugin_main( $atts ) {
 				}
 				else {
 					// if there is something in the Database show it
-					$tabval = ($thwdatum->$dbfield == '_NutzerEintragen_')? '': $thwdatum->$dbfield;
+					$tabval = ($isSelectableField)? getUserNameByID($thwdatum->$dbfield) : $thwdatum->$dbfield;
 					$hugeRetString .= '<td>' . $tabval . '</td>' ;
 				}
 			}
@@ -188,25 +188,13 @@ function thw_plugin_main( $atts ) {
 	return $hugeRetString;
 }	
 
-
-function deleteSelected( $tab, $id, $field )
-{
-	if(!isAdmin($tab))
-	{
-		echo 'ungenügend Rechte';
-		return;
-	}
+function checkIfInList($tab,$DBid){
 	global $wpdb;
-	$sqlStr = 'UPDATE ' . getTableWithPrefix($tab) . ' SET ' . $field . '="_NutzerEintragen_" WHERE ID = %d' ;
-	//echo $sqlStr . '<br>';
-	$wpdb->query($wpdb->prepare($sqlStr,$id));	//prepare disallows SQL injection
-}
 
-function chechIfInList($tab,$id,$user){
-	global $wpdb;
 	$sqlStr = 'select * from ' . getTableWithPrefix($tab) .' where id = %d';
-	$data = $wpdb->get_row($wpdb->prepare($sqlStr,$id));
-	return in_array($user, (array) $data);
+	$data = $wpdb->get_row($wpdb->prepare($sqlStr,$DBid));
+
+	return in_array(get_current_user_id(), (array) $data);
 }
 
 function getTableWithPrefix($tab)
@@ -223,10 +211,21 @@ function getTableWithPrefix($tab)
 
 function updateSelected( $tab, $id, $field )
 {
-	//it should only work if the field is empty or _NutzerEintragen_
 	global $wpdb;
-	$wpdb->update(getTableWithPrefix($tab) , array($field => getUsername()), array('ID' => $id ));
+	$wpdb->update(getTableWithPrefix($tab) , array($field => get_current_user_id()), array('ID' => $id ));
 }
+
+function deleteSelected( $tab, $id, $field )
+{
+	if(!isAdmin($tab))
+	{
+		echo 'ungenügend Rechte';
+		return;
+	}
+	global $wpdb;
+	$wpdb->update(getTableWithPrefix($tab) , array($field => -1), array('ID' => $id ));
+}
+
 
 function deleteRow( $tab, $id )
 {

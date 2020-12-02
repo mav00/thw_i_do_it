@@ -1,10 +1,10 @@
 <?php 
       /*
       Plugin Name: THW I do it
-      Plugin URI: http://www.verwold.name/wp_plugins/thw_i_do_it
+      Plugin URI: https://github.com/mav00/thw_i_do_it/
       Description: voting on a task to do it
       Author: Matthias Verwold
-      Version: o.1
+      Version: 0.2
       Author URI: http://www.verwold.name
 	  */
 	

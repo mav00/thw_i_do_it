@@ -200,13 +200,15 @@ function checkIfInList($tab,$DBid){
 function getTableWithPrefix($tab)
 {
 	global $wpdb;
-	$tabelleWithPrefix = $wpdb->prefix . 'thw_idi_' .  $tab;
-	//check if Table exits
-	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $tabelleWithPrefix ) ) !== $tabelleWithPrefix ) {
-		echo "fehler in der Abfrage";
-		$tabelleWithPrefix = 'ERROR';
-	} 
-	return $tabelleWithPrefix;
+	//check if Table  is one of ours 
+	$sqlStr = 'select idiTable from ' . $wpdb->prefix . 'thw_idi_configuration';
+	$data = $wpdb->get_row($sqlStr);
+	if(in_array($tab, (array)$data))
+	{
+		return $wpdb->prefix . 'thw_idi_' .  $tab;
+	}
+
+	return NULL;
 }
 
 function updateSelected( $tab, $id, $field )

@@ -8,8 +8,7 @@
       Author URI: http://www.verwold.name
 	  */
 	
-	
-	
+		
 	add_shortcode( 'thw_idi', 'thw_plugin_main' );
 
 	/* include Wordpress user management */
@@ -66,13 +65,14 @@ function thw_plugin_main( $atts ) {
 		$tabelleWithPrefix = getTableWithPrefix($tabelle);
 	}
 
-
 	//Where Statement
 	//$thwIdiWhere 
 	$thwIdiWhere= getDataFromSetupTable($tabelle)->idiWhere;
 	$thwIdiWhere = str_replace('&gt;', '>' , $thwIdiWhere);
 	$thwIdiWhere = str_replace('&lt;', '<' , $thwIdiWhere);
 
+	$thwIdiOrderBy= getDataFromSetupTable($tabelle)->idiOrderBy;
+	
 	//Field Statement
 	$thwIdiFields = getDataFromSetupTable($tabelle)->idiFields;
 
@@ -83,7 +83,7 @@ function thw_plugin_main( $atts ) {
 	$thwIdiSelectableFields = getDataFromSetupTable($tabelle)->idiSelectableFields;
 
 	//Field Statement
-	$thwIdiAdminRole = getDataFromSetupTable($tabelle)->idiAdminRole;
+	$thwIdiAdminUserIds = explode(',',getDataFromSetupTable($tabelle)->idiAdminUserIds);
 	
 	//Is the current user an Admin so we do options more fore him;
 	$isAdmin = isAdmin($tabelle);
@@ -91,7 +91,7 @@ function thw_plugin_main( $atts ) {
 	/* collect some Vars */
 	$hugeRetString = ''; /* everything collected in this string to return the HTML on the right spot of the document */
 	$thisPage = get_permalink(get_the_ID()); ; // home_url(add_query_arg(array($_GET), $wp->request));//plugins_url( 'thw_i_do_it.php', __FILE__ ); 
-	$sqlStr = 'SELECT * FROM ' . $tabelleWithPrefix . ' ' . $thwIdiWhere .';' ;
+	$sqlStr = 'SELECT * FROM ' . $tabelleWithPrefix . ' ' . $thwIdiWhere . ' ' . $thwIdiOrderBy .';';
 	$thw_daten = $wpdb->get_results($sqlStr);
 
 	$thwIdiFieldsArray = explode(',',$thwIdiFields);
@@ -146,6 +146,11 @@ function thw_plugin_main( $atts ) {
 						$tabval = $thwdatum->$dbfield; 
 					}else { 
 						$tabval = ''; 
+					}
+					if(isDateColumn($header) && isset($tabval) && $tabval != '' )
+					{
+						$gerDatum = new DateTime($tabval);
+						$tabval = $gerDatum->format('d.m.Y');
 					}
 					$hugeRetString .=  '<td>' . $tabval . '</td>'  ;
 				}
@@ -238,6 +243,10 @@ function deleteRow( $tab, $id )
 
 function insertData( $tab, $fieldValueArray )
 {
+	//adjust date format
+	$gerDate = new DateTime($fieldValueArray['Datum']);
+	$fieldValueArray['Datum'] = $gerDate->format('Y-m-d');
+
 	global $wpdb;
 	if(!isAdmin($tab))
 	{
@@ -254,9 +263,14 @@ function insertData( $tab, $fieldValueArray )
 function isAdmin($tabelle){
 	global $wpdb;
 	//check if the user has the rights wich are stored in the tabel thw_idi_configuration if so he is admin!
-	$result = $wpdb->get_row($wpdb->prepare('SELECT idiAdminRole FROM ' . $wpdb->prefix . 'thw_idi_configuration WHERE idiTable = "%s"',$tabelle));
-	$isAdmin = in_array( $result->idiAdminRole, (array) wp_get_current_user()->roles);
+	$result = $wpdb->get_row($wpdb->prepare('SELECT idiAdminUserIds FROM ' . $wpdb->prefix . 'thw_idi_configuration WHERE idiTable = "%s"',$tabelle));
+	$userids = explode(',',$result->idiAdminUserIds);
+	$isAdmin = in_array( wp_get_current_user()->ID,$userids);
 	return $isAdmin;
+}
+
+function isDateColumn($colName){
+	return $colName == 'Datum';
 }
 
 ?>

@@ -45,7 +45,7 @@ function getUserNameByID($userID)
 
 function getDataFromSetupTable($table){
 	global $wpdb;
-	$sqlStr= 'select * from wp_thw_idi_configuration where IdiTable=%s;'; 
+	$sqlStr= 'select * from ' . $wpdb->prefix . 'thw_idi_configuration where IdiTable=%s;'; 
 	return $wpdb->get_row($wpdb->prepare($sqlStr,$table));
 }
 
@@ -214,6 +214,7 @@ function updateSelected( $tab, $id, $field )
 {
 	global $wpdb;
 	$wpdb->update(getTableWithPrefix($tab) , array($field => get_current_user_id()), array('ID' => $id ));
+	mailNewEntry($tab,get_current_user_id(),$id);
 }
 
 function deleteSelected( $tab, $id, $field )
@@ -271,6 +272,44 @@ function isAdmin($tabelle){
 
 function isDateColumn($colName){
 	return $colName == 'Datum';
+}
+
+function isSelectableField($tabelle, $dbfield)
+{
+	$thwIdiSelectableFields = getDataFromSetupTable($tabelle)->idiSelectableFields;
+	$thwIdiSelectableFieldsArray = explode(',',$thwIdiSelectableFields);
+	$isSelectableField = in_array($dbfield, $thwIdiSelectableFieldsArray);
+	return $isSelectableField;
+}
+
+function mailNewEntry($tab, $userID, $datasetId)
+{
+	global $wpdb;
+	//echo $tab .' ';
+	//echo $userID .' ';
+	//echo $datasetId .' ';
+	$mails = getDataFromSetupTable($tab);
+	$mailTo = explode(',',$mails->idiNotificationMail);
+
+	$sqlStr = 'SELECT * FROM ' . getTableWithPrefix($tab) . ' where ID=%d ;';
+	$datarow = $wpdb->get_row($wpdb->prepare($sqlStr,$datasetId)); 
+	//var_dump ($datarow); 
+	//wp_mail( string|array $to, string $subject, string $message, string|array $headers = '', string|array $attachments = array() )
+	$subject = 'THW Diensteintrag: Neuer Nutzereintrag in Tablle ' . $tab; 
+	$message = 'Der Benutzer ' .  getUserNameByID($userID) . ' hat sich in der Tabelle: ' . $tab . ' für folgenden den Dienst eingetragen:' . PHP_EOL;
+	foreach ($datarow as $head => $value)
+	{
+		//echo 'xxxxxx ' . $tab . ' ' . $head . ' ';
+		if(isSelectableField($tab, $head ))
+		{
+			$value = getUserNameByID($value);
+		}
+		$message .= $head . ': ' . $value . PHP_EOL;
+	}
+	//echo $mailTo;
+	//echo $subject;
+	//echo $message;
+	wp_mail( $mailTo, $subject, $message );
 }
 
 ?>

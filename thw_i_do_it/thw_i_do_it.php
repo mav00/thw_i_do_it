@@ -97,43 +97,29 @@ function thw_plugin_main( $atts ) {
 	$thwIdiFieldsArray = explode(',',$thwIdiFields);
 	$thwIdiHeadersArray = explode(',',$thwIdiHeaders);
 	$thwIdiSelectableFieldsArray = explode(',',$thwIdiSelectableFields);
-	
+	$xval = array_combine($thwIdiHeadersArray, $thwIdiFieldsArray);
 	/*build Table*/
-	$hugeRetString .=  '<div><table class=thwtable>';
+	$hugeRetString .=  '<div>';
 	
 	/*build table header*/
-	$hugeRetString .= '<tr>';
-	if($isAdmin) // extra column for Admins
-	{
-		$hugeRetString .= '<td>Admin</td>';
-	}
-	foreach($thwIdiHeadersArray as $headkey => $headfield){
-		$hugeRetString .= '<td>' . $headfield . '</td>';
-	}
-	$hugeRetString .= '</tr>';
 	
 	// build Data Rows
 	if( $wpdb->num_rows > 0){
 		foreach ($thw_daten as $thwdatum) {
-			$hugeRetString .= '<tr>';
-			if($isAdmin) // add the Delete Row button for Admins
-			{
-				$hugeRetString .= '<td><form method="POST" onsubmit="return confirm(\'Soll der Datensatz wirklich gelöscht werden?\');" action="' . $thisPage . '">';
-				$hugeRetString .= '<input type="hidden" name="table" value="' . $tabelle . '" />';
-				$hugeRetString .= '<input type="hidden" name="ID" value="' . $thwdatum->ID . '" />';
-				$hugeRetString .= '<input type="submit" class="button" value="delete" name="deleteRow"/>' ;
-				$hugeRetString .= '</form></td>';
-			}
-
+			$hugeRetString .=  '<div><table>';
+			
 			$userIsInRow = checkIfInList($tabelle,$thwdatum->ID);
-			foreach($thwIdiFieldsArray as $key => $dbfield){
+			
+			foreach($xval as $header => $dbfield){
 				$isSelectableField = in_array($dbfield, $thwIdiSelectableFieldsArray);
 				//debug: echo $thwdatum->Datum;
 				//debug: var_dump($thwdatum);
 				$isEmptySelectField  = ($thwdatum->$dbfield == Null || $thwdatum->$dbfield < 0) && $isSelectableField;
 				$isFilledSelectField  = ($thwdatum->$dbfield != NULL && $thwdatum->$dbfield >=0) && $isSelectableField;
+				$hugeRetString .= '<tr>';
 				if( $isEmptySelectField && !$userIsInRow)
 				{
+					$hugeRetString .= '<td><b>' .$header . ': &nbsp</b></td>';
 					// if there is no entry bild the button to register
 					$hugeRetString .= '<td><form method="POST" onsubmit="return confirm(\'Der Eintrag ist verbindlich. Eintrag vornehmen? \');" action="' . $thisPage . '">';
 					$hugeRetString .= '<input type="hidden" name="table" value="' . $tabelle . '" />';
@@ -142,6 +128,7 @@ function thw_plugin_main( $atts ) {
 					$hugeRetString .= '<input type="submit" class="button" value="mich eintragen" name="insert_me"/>' ;
 					$hugeRetString .= '</form></td>';
 				}else if ($isFilledSelectField && $isAdmin){
+					$hugeRetString .= '<td><b>' .$header . ': &nbsp</b></td>';
 					// add delete entry for Admins but only in edit fields
 					$hugeRetString .= '<td>' . getUserNameByID($thwdatum->$dbfield)	 . '<form method="POST" onsubmit="return confirm(\'Soll der Eintrag wirklich gelöscht werden?\');" action="' . $thisPage . '">';
 					$hugeRetString .= '<input type="hidden" name="table" value="' . $tabelle . '" />';
@@ -152,27 +139,45 @@ function thw_plugin_main( $atts ) {
 				}
 				else {
 					// if there is something in the Database show it
-					$tabval = ($isSelectableField)? getUserNameByID($thwdatum->$dbfield) : $thwdatum->$dbfield;
-					$hugeRetString .= '<td>' . $tabval . '</td>' ;
+					$hugeRetString .= '<td><b>' .$header . ': &nbsp</b></td>';
+					if($isSelectableField && $thwdatum->$dbfield != '-1') { 
+						$tabval =  getUserNameByID($thwdatum->$dbfield); 
+					}else if( $thwdatum->$dbfield != "-1" ) { 
+						$tabval = $thwdatum->$dbfield; 
+					}else { 
+						$tabval = ''; 
+					}
+					$hugeRetString .=  '<td>' . $tabval . '</td>'  ;
 				}
+				$hugeRetString .= '</tr>';	
+			}
+			if($isAdmin) // add the Delete Row button for Admins
+			{
+				$hugeRetString .= '<tr><td colspan=2><form method="POST" onsubmit="return confirm(\'Soll der Datensatz wirklich gelöscht werden?\');" action="' . $thisPage . '">';
+				$hugeRetString .= '<input type="hidden" name="table" value="' . $tabelle . '" />';
+				$hugeRetString .= '<input type="hidden" name="ID" value="' . $thwdatum->ID . '" />';
+				$hugeRetString .= '<input type="submit" class="button" value="Diesen Datensatz löschen" name="deleteRow"/>' ;
+				$hugeRetString .= '</form></td></tr>';
 			}
 			//end the Row
-			$hugeRetString .= '</tr>';
+			$hugeRetString .= '</table><hr></div>';
 		}
 	}
 	if($isAdmin){
-		$hugeRetString .= '<tr><form method="POST" action="' . $thisPage . '">';
-		$hugeRetString .= '<td><input type="hidden" name="table" value="' . $tabelle . '" />' ;
-		$hugeRetString .= '<input type="submit" class="button" value="hinzufügen" name="addRow"/> </td>' ;
-		foreach($thwIdiFieldsArray as $key => $field)
-		{
-			$hugeRetString .= '<td>' ;
+		$hugeRetString .= '<div><b>Neuen Datensatz eintragen: </b></br>';
+		$hugeRetString .= '<form method="POST" action="' . $thisPage . '"><table>';
+		foreach($xval as $header => $field)
+		{	
+			$hugeRetString .= '<tr>' ;
 			if(!in_array($field, $thwIdiSelectableFieldsArray)){
-				$hugeRetString .= '<input type="text" name="' . $field .'" value="" />';
+				$hugeRetString .= '<td><b>' . $header . ':</b></td><td><input type="text" name="' . $field .'" value="" /> </td>';
 			}
-			$hugeRetString .= '</td>' ;
+			$hugeRetString .= '</tr>' ;
 		}
-		$hugeRetString .= '</form></tr>';
+		$hugeRetString .= '</table>';
+		$hugeRetString .= '<input type="hidden" name="table" value="' . $tabelle . '" />' ;
+		$hugeRetString .= '<input type="submit" class="button" value="hinzufügen" name="addRow"/></form><br><hr></div>' ;
+		
 	}
 	// todo: add new ROW THV Admins
 	$hugeRetString .= '</table></div>';

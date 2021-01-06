@@ -43,10 +43,50 @@ function getUserNameByID($userID)
 	return $_strName;  
 }
 
+class SetupTable{  
+	private static $arraySetupTable = array();
+	private $datatable = null;
+
+    public static function getInstance($tabelle)
+    {
+        if (!array_key_exists($tabelle, self::$arraySetupTable)) {
+			self::$arraySetupTable[$tabelle] = new SetupTable();
+			$st = self::$arraySetupTable[$tabelle];
+
+			$st->querryData($tabelle);
+        }
+
+        return self::$arraySetupTable[$tabelle];
+	}
+	
+	function querryData($tabelle)
+	{
+		global $wpdb;
+		$sqlStr= 'select * from ' . $wpdb->prefix . 'thw_idi_configuration where IdiTable=%s;'; 
+		$this->datatable = $wpdb->get_row($wpdb->prepare($sqlStr,$tabelle));
+	}
+
+	function data()
+	{
+		return $this->datatable;
+	}
+
+    private function __construct()
+    {
+    }
+
+    private function __clone()
+    {
+    }
+
+    private function __wakeup()
+    {
+    }
+}
+
+
 function getDataFromSetupTable($table){
-	global $wpdb;
-	$sqlStr= 'select * from ' . $wpdb->prefix . 'thw_idi_configuration where IdiTable=%s;'; 
-	return $wpdb->get_row($wpdb->prepare($sqlStr,$table));
+	return SetupTable::getInstance($table)->data();
 }
 
 function thw_plugin_main( $atts ) {
@@ -295,7 +335,7 @@ function mailNewEntry($tab, $userID, $datasetId)
 	$datarow = $wpdb->get_row($wpdb->prepare($sqlStr,$datasetId)); 
 	//var_dump ($datarow); 
 	//wp_mail( string|array $to, string $subject, string $message, string|array $headers = '', string|array $attachments = array() )
-	$subject = 'THW Diensteintrag: Neuer Nutzereintrag in Tablle ' . $tab; 
+	$subject = 'THW Diensteintrag: Neuer Nutzereintrag in Tabelle ' . $tab; 
 	$message = 'Der Benutzer ' .  getUserNameByID($userID) . ' hat sich in der Tabelle: ' . $tab . ' für folgenden den Dienst eingetragen:' . PHP_EOL;
 	foreach ($datarow as $head => $value)
 	{

@@ -21,19 +21,27 @@
 		$table = $_POST['table'];
 		$id = $_POST['ID'];
 		$field = $_POST['column'];
-		updateSelected($table, $id, $field );
-	}else if(isset($_POST['deleteRow'])){
+		$build = new IdiBuilder($table);
+		$build->updateSelected($id, $field );
+	}else if(isset($_POST['deleteDataSet'])){
 		$table = $_POST['table'];
 		$id = $_POST['ID'];
-		deleteRow($table, $id);
+		$build = new IdiBuilder($table);
+		$build->deleteDataSet($id);
 	}else if(isset($_POST['addRow'])){
 		$table = $_POST['table'];
-		insertData( $table, $_POST );
+		$build = new IdiBuilder($table);
+		$build->insertDataSet( $_POST );
 	}else if(isset($_POST['del_user'])){
 		$table = $_POST['table'];
 		$id = $_POST['ID'];
 		$dbfield = $_POST['column'];
-		deleteSelected($table,$id,$dbfield);
+		$build = new IdiBuilder($table);
+		$build->deleteSelected($id,$dbfield);
+	}else if(isset($_POST['genPDF'])){
+		$table = $_POST['table'];
+		$build = new IdiBuilder($table);
+		$build->genPDF();
 	}
 
 function getUserNameByID($userID)
@@ -121,6 +129,7 @@ class IdiBuilder{
 	private ?array $thwIdiHeadersArray;
 	private ?array $thwIdiSelectableFieldsArray;
 	private ?array $thwIdiAdminUserIdsArray;
+	private ?array $thwidiNotificationMailArray;
 	private ?string $idiTable;
 	private ?string $idiTable_With_Prefix;
 
@@ -134,26 +143,75 @@ class IdiBuilder{
 		$this->thwIdiWhere = str_replace('&gt;', '>' , $this->thwIdiWhere);
 		$this->thwIdiWhere = str_replace('&lt;', '<' , $this->thwIdiWhere);
 		$this->thwIdiOrderBy= getDataFromSetupTable($_idiTable)->idiOrderBy;
-	
-		//Field Statement
 		$this->thwIdiFieldsArray = explode(',',getDataFromSetupTable($_idiTable)->idiFields);
-
-		//Field Statement
 		$this->thwIdiHeadersArray = explode(',',getDataFromSetupTable($_idiTable)->idiHeaders);
-
-
-		//Field Statement
 		$this->thwIdiSelectableFieldsArray = explode(',',getDataFromSetupTable($_idiTable)->idiSelectableFields);
-
-		//Field Statement
 		$this->thwIdiAdminUserIdsArray = explode(',',getDataFromSetupTable($_idiTable)->idiAdminUserIds);
+		$this->thwidiNotificationMailArray = explode(',',getDataFromSetupTable($_idiTable)->idiNotificationMail);
 	}
 
 	private function IsCurrentUserInRecord($RecordID){
-		global $wpdb;
-		$sqlStr = 'select * from ' . $this->idiTable_With_Prefix .' where id = %d';
-		$data = $wpdb->get_row($wpdb->prepare($sqlStr,$RecordID));
+		$data = self::getDataRowByID( $RecordID);
 		return in_array(get_current_user_id(), (array) $data);
+	}
+
+	function getDataPretty($DataRaw, $head)
+	{
+		$isSelectableField = self::isSelectableField($head);
+
+		if($isSelectableField && $DataRaw != '-1') { 
+			$DataRaw =  getUserNameByID($DataRaw); 
+		}else if( $DataRaw != "-1" ) { 
+			$DataRaw = $DataRaw; 
+		}else { 
+			$DataRaw = ''; 
+		}
+		if(isDateColumn($head) && isset($DataRaw) && $DataRaw != '' )
+		{
+			$gerDatum = new DateTime($DataRaw);
+			$DataRaw = $gerDatum->format('d.m.Y');
+		}
+		return $DataRaw;
+	}
+
+	function genPDF()
+	{
+		global $wpdb;
+		global $wp;	
+		require('fpdf.php');
+
+		$pdf = new FPDF('L');
+		$pdf->AddPage();
+		$pdf->SetFont('Arial','B',16);
+		$pdf->Cell(40,10,strtoupper($this->idiTable) . '-Dienste');
+		$pdf->Ln();
+
+		$sqlStr = 'SELECT * FROM ' . $this->idiTable_With_Prefix . ' ' . $this->thwIdiWhere . ' ' . $this->thwIdiOrderBy .';';
+		$thw_daten = $wpdb->get_results($sqlStr);
+		$xval = array_combine($this->thwIdiHeadersArray, $this->thwIdiFieldsArray);
+		//var_dump($this->thwIdiHeadersArray);
+		// Column widths
+		$w = array( 20, 15, 10, 38, 38, 38, 38, 38, 38);
+		// Header
+		$pdf->SetFont('Arial','B',8);
+		for($i=0;$i<count($w);$i++){
+			$str = $this->thwIdiHeadersArray[$i];
+			$pdf->Cell($w[$i],9,$str,1,0,'C');
+		}
+		$pdf->Ln();
+		//Data
+		$pdf->SetFont('Arial','',8);
+		foreach ($thw_daten as $thwdatum) {
+			for($j=0;$j<count($w);$j++){
+				$head = $this->thwIdiFieldsArray[$j]; 
+				$str = $thwdatum->$head;
+				$str= self::getDataPretty($str,$head);
+				//echo $str;
+				$pdf->Cell($w[$j],9,$str,1,0,'C');
+			}
+			$pdf->Ln();	
+		}
+		$pdf->Output('D',$this->idiTable . '_Dienste.pdf',false);
 	}
 
 	function buildPage(){
@@ -180,15 +238,15 @@ class IdiBuilder{
 				$userAlreadyInThatRecord = self::IsCurrentUserInRecord($thwdatum->ID);
 				
 				foreach($xval as $header => $dbfield){
-					$isSelectableField = in_array($dbfield, $this->thwIdiSelectableFieldsArray);
+					$isSelectableField = self::isSelectableField($dbfield);
 					//debug: echo $thwdatum->Datum;
 					//debug: var_dump($thwdatum);
 					$isEmptySelectField  = ($thwdatum->$dbfield == Null || $thwdatum->$dbfield < 0) && $isSelectableField;
 					$isFilledSelectField  = ($thwdatum->$dbfield != NULL && $thwdatum->$dbfield >=0) && $isSelectableField;
 					$hugeRetString .= '<tr>';
+					$hugeRetString .= '<td><b>' .$header . ': &nbsp</b></td>';
 					if( $isEmptySelectField && !$userAlreadyInThatRecord)
 					{
-						$hugeRetString .= '<td><b>' .$header . ': &nbsp</b></td>';
 						// if there is no entry bild the button to register
 						$hugeRetString .= '<td><form method="POST" onsubmit="return confirm(\'Der Eintrag ist verbindlich. Eintrag vornehmen? \');" action="' . $thisPage . '">';
 						$hugeRetString .= '<input type="hidden" name="table" value="' . $this->idiTable . '" />';
@@ -197,7 +255,6 @@ class IdiBuilder{
 						$hugeRetString .= '<input type="submit" class="button" value="mich eintragen" name="insert_me"/>' ;
 						$hugeRetString .= '</form></td>';
 					}else if ($isFilledSelectField && self::isAdmin()){
-						$hugeRetString .= '<td><b>' .$header . ': &nbsp</b></td>';
 						// add delete entry for Admins but only in edit fields
 						$hugeRetString .= '<td>' . getUserNameByID($thwdatum->$dbfield)	 . '<form method="POST" onsubmit="return confirm(\'Soll der Eintrag wirklich gelöscht werden?\');" action="' . $thisPage . '">';
 						$hugeRetString .= '<input type="hidden" name="table" value="' . $this->idiTable . '" />';
@@ -208,19 +265,7 @@ class IdiBuilder{
 					}
 					else {
 						// if there is something in the Database show it
-						$hugeRetString .= '<td><b>' .$header . ': &nbsp</b></td>';
-						if($isSelectableField && $thwdatum->$dbfield != '-1') { 
-							$tabval =  getUserNameByID($thwdatum->$dbfield); 
-						}else if( $thwdatum->$dbfield != "-1" ) { 
-							$tabval = $thwdatum->$dbfield; 
-						}else { 
-							$tabval = ''; 
-						}
-						if(isDateColumn($header) && isset($tabval) && $tabval != '' )
-						{
-							$gerDatum = new DateTime($tabval);
-							$tabval = $gerDatum->format('d.m.Y');
-						}
+						$tabval = self::getDataPretty($thwdatum->$dbfield, $dbfield);
 						$hugeRetString .=  '<td>' . $tabval . '</td>'  ;
 					}
 					$hugeRetString .= '</tr>';	
@@ -230,7 +275,7 @@ class IdiBuilder{
 					$hugeRetString .= '<tr><td colspan=2><form method="POST" onsubmit="return confirm(\'Soll der Datensatz wirklich gelöscht werden?\');" action="' . $thisPage . '">';
 					$hugeRetString .= '<input type="hidden" name="table" value="' . $this->idiTable . '" />';
 					$hugeRetString .= '<input type="hidden" name="ID" value="' . $thwdatum->ID . '" />';
-					$hugeRetString .= '<input type="submit" class="button" value="Diesen Datensatz löschen" name="deleteRow"/>' ;
+					$hugeRetString .= '<input type="submit" class="button" value="Diesen Datensatz löschen" name="deleteDataSet"/>' ;
 					$hugeRetString .= '</form></td></tr>';
 				}
 				//end the Row
@@ -250,13 +295,68 @@ class IdiBuilder{
 			}
 			$hugeRetString .= '</table>';
 			$hugeRetString .= '<input type="hidden" name="table" value="' . $this->idiTable . '" />' ;
-			$hugeRetString .= '<input type="submit" class="button" value="hinzufügen" name="addRow"/></form><br><hr></div>' ;
+			$hugeRetString .= '<input type="submit" class="button" value="hinzufügen" name="addRow"/></form><br>';
+			$hugeRetString .= '<form method="POST" action="' . $thisPage . '">';
+			$hugeRetString .= '<input type="hidden" name="table" value="' . $this->idiTable . '" />';
+			$hugeRetString .= '<input type="submit" class="button" value="PDF generieren" name="genPDF"/>' ;
+			$hugeRetString .= '</form><hr></div>' ;
 			
 		}
 		// todo: add new ROW THV Admins
 		$hugeRetString .= '</table></div>';
 		return $hugeRetString;
-	}	
+	}
+	
+	function updateSelected( $id, $field )
+	{
+		global $wpdb;
+		$wpdb->update(getTableWithPrefixSecure($this->idiTable) , array($field => get_current_user_id()), array('ID' => $id ));
+		self::mailNewEntry(get_current_user_id(),$id);
+	}
+
+	function deleteSelected($id, $field )
+	{
+		if(!self::isAdmin())
+		{
+			echo 'ungenügend Rechte';
+			return;
+		}
+		self::mailDeleteEntry($field,$id);
+		global $wpdb;
+		$wpdb->update(getTableWithPrefixSecure($this->idiTable) , array($field => -1), array('ID' => $id ));
+	}
+
+	function deleteDataSet( $id )
+	{
+		if(!self::isAdmin())
+		{
+			echo 'ungenügend Rechte';
+			return;
+		}
+		global $wpdb;
+		//$dataValue = '';
+		$sqlStr = 'Delete from ' . getTableWithPrefixSecure($this->idiTable) . ' WHERE ID = %d' ;
+		$wpdb->query($wpdb->prepare($sqlStr,$id));	 //prepare disallows SQL injection
+	}
+	
+	function insertDataSet($fieldValueArray )
+	{
+		//adjust date format
+		$gerDate = new DateTime($fieldValueArray['Datum']);
+		$fieldValueArray['Datum'] = $gerDate->format('Y-m-d');
+		//TODO: check Datum
+		global $wpdb;
+		if(!self::isAdmin())
+		{
+			echo 'ungenügend Rechte';
+			return;
+		}
+
+		$data = [];
+		unset($fieldValueArray["table"]);
+		unset($fieldValueArray["addRow"]);
+		$wpdb->insert(getTableWithPrefixSecure($this->idiTable) , $fieldValueArray, array( '%s','%s' ));
+	}
 
 	function isAdmin($userID = -1){
 		if ($userID == -1) {
@@ -271,10 +371,66 @@ class IdiBuilder{
 		$isAdmin = in_array( $userID->ID,$this->thwIdiAdminUserIdsArray);
 		return $isAdmin;
 	}
-	
+
+	function mailNewEntry( $userID, $datasetId)
+	{	
+		$datarow = self::getDataRowByID($datasetId); 
+		$subject = 'THW Diensteintrag: Neuer Nutzereintrag in idiTable ' . $this->idiTable; 
+		$message = 'Der Benutzer ' .  getUserNameByID($userID) . ' hat sich in der idiTable: ' . $this->idiTable . ' für folgenden den Dienst eingetragen:' . PHP_EOL;
+		foreach ($datarow as $head => $value)
+		{
+			if(self::isSelectableField( $head ))
+			{
+				if ($userID == $value)
+				{
+					$value = '---> ' . getUserNameByID($value) . ' <---';
+				}else{
+					$value = getUserNameByID($value);
+				}
+			}
+			$message .= $head . ': ' . $value . PHP_EOL;
+		}
+		wp_mail( $this->thwidiNotificationMailArray, $subject, $message );
+	}
+
+	function mailDeleteEntry( $field, $datasetId)
+	{
+		$datarow = self::getDataRowByID($datasetId);
+		$userID = $datarow->$field;  
+		$subject = 'THW Diensteintrag: Neue Austragung aus einen ' . $this->idiTable . '-Dienst'; 
+		$message = 'Der ' . getUserNameByID(get_current_user_id())  . ' hat ' .  getUserNameByID($userID) . '  für folgeneden: ' . $this->idiTable . '-Dienst ausgetragen:' . PHP_EOL;
+		foreach ($datarow as $head => $value)
+		{
+			if(self::isSelectableField( $head ))
+			{
+				if ($userID == $value)
+				{
+					$value = '---> ' . getUserNameByID($value) . ' <---';
+				}else{
+					$value = getUserNameByID($value);
+				}
+			}
+			$message .= $head . ': ' . $value . PHP_EOL;
+		}
+		wp_mail($this->thwidiNotificationMailArray, $subject, $message );
+	}
+
+	function getDataRowByID($ID)
+	{
+		global $wpdb;
+		$sqlStr = 'SELECT * FROM ' . getTableWithPrefixSecure($this->idiTable) . ' where ID=%d ;';
+		$datarow = $wpdb->get_row($wpdb->prepare($sqlStr,$ID));
+		return $datarow;
+	}
+
+	function isSelectableField( $dbfield)
+	{
+		$isSelectableField = in_array($dbfield, $this->thwIdiSelectableFieldsArray);
+		return $isSelectableField;
+	}
 }
 
-
+//TODO: check this in constructor and thats it
 function getTableWithPrefixSecure($tab)
 {
 	global $wpdb;
@@ -289,119 +445,9 @@ function getTableWithPrefixSecure($tab)
 	return NULL;
 }
 
-function updateSelected( $tab, $id, $field )
-{
-	global $wpdb;
-	$wpdb->update(getTableWithPrefixSecure($tab) , array($field => get_current_user_id()), array('ID' => $id ));
-	mailNewEntry($tab,get_current_user_id(),$id);
-}
 
-function deleteSelected( $tab, $id, $field )
-{
-	$build = new IdiBuilder($tab);
-	if(!$build->isAdmin())
-	{
-		echo 'ungenügend Rechte';
-		return;
-	}
-	var_dump($field);
-	mailDeleteEntry($tab,$field,$id);
-	global $wpdb;
-	$wpdb->update(getTableWithPrefixSecure($tab) , array($field => -1), array('ID' => $id ));
-}
 
-function deleteRow( $tab, $id )
-{
-	$build = new IdiBuilder($tab);
-	if(!$build->isAdmin())
-	{
-		echo 'ungenügend Rechte';
-		return;
-	}
-	global $wpdb;
-	//$dataValue = '';
-	$sqlStr = 'Delete from ' . getTableWithPrefixSecure($tab) . ' WHERE ID = %d' ;
-	$wpdb->query($wpdb->prepare($sqlStr,$id));	 //prepare disallows SQL injection
-}
 
-function insertData( $tab, $fieldValueArray )
-{
-	//adjust date format
-	$gerDate = new DateTime($fieldValueArray['Datum']);
-	$fieldValueArray['Datum'] = $gerDate->format('Y-m-d');
-
-	global $wpdb;
-	$build = new IdiBuilder($tab);
-	if(!$build->isAdmin())
-	{
-		echo 'ungenügend Rechte';
-		return;
-	}
-	$data = [];
-	unset($fieldValueArray["table"]);
-	unset($fieldValueArray["addRow"]);
-	$wpdb->insert(getTableWithPrefixSecure($tab) , $fieldValueArray, array( '%s','%s' ));
-}
-
-function isSelectableField($idiTable, $dbfield)
-{
-	$thwIdiSelectableFields = getDataFromSetupTable($idiTable)->idiSelectableFields;
-	$thwIdiSelectableFieldsArray = explode(',',$thwIdiSelectableFields);
-	$isSelectableField = in_array($dbfield, $thwIdiSelectableFieldsArray);
-	return $isSelectableField;
-}
-
-function mailNewEntry($tab, $userID, $datasetId)
-{
-	global $wpdb;
-	$mails = getDataFromSetupTable($tab);
-	$mailTo = explode(',',$mails->idiNotificationMail);
-
-	$sqlStr = 'SELECT * FROM ' . getTableWithPrefixSecure($tab) . ' where ID=%d ;';
-	$datarow = $wpdb->get_row($wpdb->prepare($sqlStr,$datasetId)); 
-	$subject = 'THW Diensteintrag: Neuer Nutzereintrag in idiTable ' . $tab; 
-	$message = 'Der Benutzer ' .  getUserNameByID($userID) . ' hat sich in der idiTable: ' . $tab . ' für folgenden den Dienst eingetragen:' . PHP_EOL;
-	foreach ($datarow as $head => $value)
-	{
-		if(isSelectableField($tab, $head ))
-		{
-			if ($userID == $value)
-			{
-				$value = '---> ' . getUserNameByID($value) . ' <---';
-			}else{
-				$value = getUserNameByID($value);
-			}
-		}
-		$message .= $head . ': ' . $value . PHP_EOL;
-	}
-	wp_mail( $mailTo, $subject, $message );
-}
-
-function mailDeleteEntry($tab, $field, $datasetId)
-{
-	global $wpdb;
-	$mails = getDataFromSetupTable($tab);
-	$mailTo = explode(',',$mails->idiNotificationMail);
-	$sqlStr = 'SELECT * FROM ' . getTableWithPrefixSecure($tab) . ' where ID=%d ;';
-	$datarow = $wpdb->get_row($wpdb->prepare($sqlStr,$datasetId));
-	$userID = $datarow->$field;  
-	$subject = 'THW Diensteintrag: Neue Austragung aus einen ' . $tab . '-Dienst'; 
-	$message = 'Der ' . getUserNameByID(get_current_user_id())  . ' hat ' .  getUserNameByID($userID) . '  für folgeneden: ' . $tab . '-Dienst ausgetragen:' . PHP_EOL;
-	foreach ($datarow as $head => $value)
-	{
-		if(isSelectableField($tab, $head ))
-		{
-			if ($userID == $value)
-			{
-				$value = '---> ' . getUserNameByID($value) . ' <---';
-			}else{
-				$value = getUserNameByID($value);
-			}
-		}
-		$message .= $head . ': ' . $value . PHP_EOL;
-	}
-	wp_mail( $mailTo, $subject, $message );
-}
 
 
 ?>

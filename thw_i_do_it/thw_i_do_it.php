@@ -214,7 +214,7 @@ class IdiBuilder{
 		$pdf->SetFont('Helvetica','B',8);
 		for($i=0;$i<count($w);$i++){
 			$str = $this->thwIdiHeadersArray[$i];
-			$pdf->Cell($w[$i],9,$str,1,0,'C');
+			$pdf->Cell($w[$i],9,utf8_decode($str),1,0,'C');
 		}
 		$pdf->Ln();
 		//Data
@@ -225,7 +225,7 @@ class IdiBuilder{
 				$str = $thwdatum->$head;
 				$str= self::getDataPretty($str,$head);
 				//echo $str;
-				$pdf->Cell($w[$j],9,$str,1,0,'C');
+				$pdf->Cell($w[$j],9,utf8_decode($str),1,0,'C');
 			}
 			$pdf->Ln();	
 		}

@@ -295,7 +295,8 @@ class IdiBuilder{
 						$hugeRetString .= '</td>';
 					}else if ($isFilledSelectableField && self::isAdmin()){
 						// add delete entry for Admins but only in edit fields
-						$hugeRetString .= '<td>' . self::getDataPretty($fieldValue, $dbfield)	 . '<form method="POST" onsubmit="return confirm(\'Soll der Eintrag wirklich gelöscht werden?\');" action="' . $thisPage . '">';
+						$hugeRetString .= '<td><form method="POST" onsubmit="return confirm(\'Soll der Eintrag wirklich gelöscht werden?\');" action="' . $thisPage . '">';
+						$hugeRetString .= self::getDataPretty($fieldValue, $dbfield) . ' ';
 						$hugeRetString .= '<input type="hidden" name="table" value="' . $this->idiTable . '" />';
 						$hugeRetString .= '<input type="hidden" name="ID" value="' . $thwdatum->ID . '" />';
 						$hugeRetString .= '<input type="hidden" name="column" value="' . $dbfield . '" />';

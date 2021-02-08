@@ -201,7 +201,9 @@ class IdiBuilder{
 		$pdf = new FPDF('L');
 		$pdf->AddPage();
 		$pdf->SetFont('Arial','B',16);
-		$pdf->Cell(40,10,strtoupper($this->idiTable) . '-Dienste');
+		$pdf->Cell(240,10,strtoupper($this->idiTable) . '-Dienste');
+		$pdf->SetFont('Arial','',8);
+		$pdf->Cell(40,10,'stand: ' . date("d.m.Y - H:i"));
 		$pdf->Ln();
 
 		$sqlStr = 'SELECT * FROM ' . $this->idiTable_With_Prefix . ' ' . $this->thwIdiWhere . ' ' . $this->thwIdiOrderBy .';';

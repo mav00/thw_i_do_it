@@ -477,9 +477,8 @@ class IdiBuilder{
 function getTableWithPrefixSecure($tab)
 {
 	global $wpdb;
-	//check if Table  is one of ours 
-	$sqlStr = 'select idiTable from ' . $wpdb->prefix . 'thw_idi_configuration';
-	$data = $wpdb->get_row($sqlStr);
+	$sqlStr = 'select idiTable from ' . $wpdb->prefix . 'thw_idi_configuration where IdiTable=%s;';
+	$data = $wpdb->get_row($wpdb->prepare($sqlStr,$tab));
 	if(in_array($tab, (array)$data))
 	{
 		return $wpdb->prefix . 'thw_idi_' .  $tab;

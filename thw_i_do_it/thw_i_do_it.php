@@ -137,6 +137,7 @@ class IdiBuilder{
 	private ?array $thwIdiSelectableFieldsArray;
 	private ?array $thwIdiAdminUserIdsArray;
 	private ?array $thwidiNotificationMailArray;
+	private ?array $thwidiPDFColumnSizes;
 	private ?string $idiTable;
 	private ?string $idiTable_With_Prefix;
 
@@ -152,6 +153,7 @@ class IdiBuilder{
 		$this->thwIdiOrderBy= getDataFromSetupTable($_idiTable)->idiOrderBy;
 		$this->thwIdiFieldsArray = explode(',',getDataFromSetupTable($_idiTable)->idiFields);
 		$this->thwIdiHeadersArray = explode(',',getDataFromSetupTable($_idiTable)->idiHeaders);
+		$this->thwidiPDFColumnSizes = explode(',',getDataFromSetupTable($_idiTable)->idiPDFColumnSizes);
 		$this->thwIdiSelectableFieldsArray = explode(',',getDataFromSetupTable($_idiTable)->idiSelectableFields);
 		$this->thwIdiAdminUserIdsArray = explode(',',getDataFromSetupTable($_idiTable)->idiAdminUserIds);
 		$this->thwidiNotificationMailArray = explode(',',getDataFromSetupTable($_idiTable)->idiNotificationMail);
@@ -211,23 +213,22 @@ class IdiBuilder{
 		$xval = array_combine($this->thwIdiHeadersArray, $this->thwIdiFieldsArray);
 		//var_dump($this->thwIdiHeadersArray);
 		// Column widths
-		$w = array( 20, 15, 10, 38, 38, 38, 38, 38, 38);
 		// Header
 		$pdf->SetFont('Helvetica','B',8);
-		for($i=0;$i<count($w);$i++){
+		for($i=0;$i<count($this->thwidiPDFColumnSizes);$i++){
 			$str = $this->thwIdiHeadersArray[$i];
-			$pdf->Cell($w[$i],9,utf8_decode($str),1,0,'C');
+			$pdf->Cell($this->thwidiPDFColumnSizes[$i],9,utf8_decode($str),1,0,'C');
 		}
 		$pdf->Ln();
 		//Data
 		$pdf->SetFont('Arial','',8);
 		foreach ($thw_daten as $thwdatum) {
-			for($j=0;$j<count($w);$j++){
+			for($j=0;$j<count($this->thwidiPDFColumnSizes);$j++){
 				$head = $this->thwIdiFieldsArray[$j]; 
 				$str = $thwdatum->$head;
 				$str= self::getDataPretty($str,$head);
 				//echo $str;
-				$pdf->Cell($w[$j],9,utf8_decode($str),1,0,'C');
+				$pdf->Cell($this->thwidiPDFColumnSizes[$j],9,utf8_decode($str),1,0,'C');
 			}
 			$pdf->Ln();	
 		}

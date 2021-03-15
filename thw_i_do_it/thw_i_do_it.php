@@ -154,8 +154,8 @@ class IdiBuilder{
 		$this->thwIdiFieldsArray = explode(',',getDataFromSetupTable($_idiTable)->idiFields);
 		$this->thwIdiHeadersArray = explode(',',getDataFromSetupTable($_idiTable)->idiHeaders);
 		$this->thwidiPDFColumnSizes = explode(',',getDataFromSetupTable($_idiTable)->idiPDFColumnSizes);
-		$this->thwIdiSelectableFieldsArray = explode(',',getDataFromSetupTable($_idiTable)->idiSelectableFields);
 		$this->thwIdiAdminUserIdsArray = explode(',',getDataFromSetupTable($_idiTable)->idiAdminUserIds);
+		$this->thwIdiSelectableFieldsArray = explode(',',getDataFromSetupTable($_idiTable)->idiSelectableFields);
 		$this->thwidiNotificationMailArray = explode(',',getDataFromSetupTable($_idiTable)->idiNotificationMail);
 	}
 
@@ -257,6 +257,14 @@ class IdiBuilder{
 				
 				$userAlreadyInThatRecord = self::IsCurrentUserInRecord($thwdatum->ID);
 				
+
+				$isDateOutdated = false;
+				foreach($xval as $header => $dbfield){
+					if($header == "Datum" ) {
+						$isDateOutdated = strtotime($thwdatum->$dbfield) < strtotime(date('Y/m/d'));
+					} 
+				}
+
 				foreach($xval as $header => $dbfield){
 					$isSelectableField = self::isSelectableField($dbfield);
 					//debug: echo $thwdatum->Datum;
@@ -276,14 +284,14 @@ class IdiBuilder{
 					{
 						$hugeRetString .= '<td>';
 
-						if(!$userAlreadyInThatRecord || self::isAdmin())
+						if((!$userAlreadyInThatRecord && !$isDateOutdated) || self::isAdmin())
 						{
 							// if there is no entry bild the button to register
 							$hugeRetString .= '<form method="POST" onsubmit="return confirm(\'Der Eintrag ist verbindlich. Eintrag vornehmen? \');" action="' . $thisPage . '">';
 							$hugeRetString .= '<input type="hidden" name="table" value="' . $this->idiTable . '" />';
 							$hugeRetString .= '<input type="hidden" name="ID" value="' . $thwdatum->ID . '" />';
 							$hugeRetString .= '<input type="hidden" name="column" value="' . $dbfield . '" />';
-							if (!$userAlreadyInThatRecord){
+							if (!$userAlreadyInThatRecord && !$isDateOutdated){
 								$hugeRetString .= '<input type="submit" class="button" value="mich eintragen" name="insert_me"/>';
 								if(self::isAdmin()){
 									$hugeRetString .= ' oder ';

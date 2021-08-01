@@ -131,6 +131,7 @@ function thw_plugin_main( $atts ) {
 class IdiBuilder{  
 
 	private ?string $thwIdiWhere;
+	private ?string $thwIdiWherePDF;
 	private ?string $thwIdiOrderBy;
 	private ?array $thwIdiFieldsArray;
 	private ?array $thwIdiHeadersArray;
@@ -150,6 +151,11 @@ class IdiBuilder{
 		$this->thwIdiWhere = getDataFromSetupTable($_idiTable)->idiWhere;
 		$this->thwIdiWhere = str_replace('&gt;', '>' , $this->thwIdiWhere);
 		$this->thwIdiWhere = str_replace('&lt;', '<' , $this->thwIdiWhere);
+
+		$this->thwIdiWherePDF = getDataFromSetupTable($_idiTable)->idiWherePDF;
+		$this->thwIdiWherePDF = str_replace('&gt;', '>' , $this->thwIdiWherePDF);
+		$this->thwIdiWherePDF = str_replace('&lt;', '<' , $this->thwIdiWherePDF);
+		
 		$this->thwIdiOrderBy= getDataFromSetupTable($_idiTable)->idiOrderBy;
 		$this->thwIdiFieldsArray = explode(',',getDataFromSetupTable($_idiTable)->idiFields);
 		$this->thwIdiHeadersArray = explode(',',getDataFromSetupTable($_idiTable)->idiHeaders);
@@ -208,7 +214,7 @@ class IdiBuilder{
 		$pdf->Cell(40,10,'stand: ' . date("d.m.Y - H:i"));
 		$pdf->Ln();
 
-		$sqlStr = 'SELECT * FROM ' . $this->idiTable_With_Prefix . ' ' . $this->thwIdiWhere . ' ' . $this->thwIdiOrderBy .';';
+		$sqlStr = 'SELECT * FROM ' . $this->idiTable_With_Prefix . ' ' . $this->thwIdiWherePDF . ' ' . $this->thwIdiOrderBy .';';
 		$thw_daten = $wpdb->get_results($sqlStr);
 		$xval = array_combine($this->thwIdiHeadersArray, $this->thwIdiFieldsArray);
 		//var_dump($this->thwIdiHeadersArray);
